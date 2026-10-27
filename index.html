@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Fretline - rhythm game for your own music</title>
+<meta name="description" content="Fretline: an independent rhythm game. Load your own song and background video; charts are generated on your device. Works offline.">
+<meta name="theme-color" content="#0d1319">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-screen="menu">
+<div id="bg" aria-hidden="true"><video id="bgVideo" muted loop playsinline webkit-playsinline preload="auto"></video><div id="bgImg"></div><div id="bgDim"></div></div>
+
+<main id="menu" class="screen">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 56 L26 8 H38 L46 56 Z" fill="#17222c" stroke="#2dd4bf" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="22" r="4.5" fill="#2dd4bf"/><circle cx="29" cy="38" r="5.5" fill="#38bdf8"/><circle cx="37" cy="47" r="6.5" fill="#fbbf24"/></svg>
+      <div><h1>Fretline</h1><p class="tag">Play along to your own music</p></div>
+    </div>
+    <div class="top-actions">
+      <button class="btn ghost" id="openSaved">Saved charts</button>
+      <button class="btn ghost" id="fsBtn" aria-label="Toggle fullscreen">Fullscreen</button>
+      <button class="btn ghost" id="openSettings">Settings</button>
+    </div>
+  </header>
+  <p class="rotate-tip">Tip: turn your phone to landscape for the best view.</p>
+
+  <div class="cards">
+    <section class="card" id="songCard">
+      <h2><span class="n">1</span> Song</h2>
+      <label class="drop" id="dropZone" for="songInput">
+        <input type="file" id="songInput" accept="audio/*,.mp3,.wav,.m4a,.ogg,.oga,.opus,.aac,.flac">
+        <strong>Choose an audio file</strong>
+        <span>or drop one here (mp3, wav, m4a, ogg)</span>
+      </label>
+      <div class="song-info"><div id="songName" class="song-name">No song loaded</div><div id="songMeta" class="muted"></div></div>
+      <div class="prog" id="songProg" hidden><div id="songProgBar"></div></div>
+      <button class="btn" id="demoBtn">Use built-in demo track</button>
+      <p class="fine">Files stay on this device. Nothing is uploaded.</p>
+    </section>
+
+    <section class="card" id="bgCard">
+      <h2><span class="n">2</span> Background <span class="opt">optional</span></h2>
+      <div class="bg-row">
+        <div class="thumb" id="bgThumbWrap"><img id="bgThumb" alt="" hidden><span id="bgThumbEmpty">None</span></div>
+        <div class="bg-btns">
+          <label class="btn" for="bgInput">Choose video or image<input type="file" id="bgInput" accept="video/*,image/*,.mp4,.webm,.mov,.m4v"></label>
+          <button class="btn ghost" id="bgNone">No background</button>
+        </div>
+      </div>
+      <div id="bgName" class="muted small"></div>
+      <label class="check"><input type="checkbox" id="vidAudio" disabled> Use the video's own audio as the song</label>
+      <label class="range"><span>Dim <b id="dimVal">45%</b></span><input type="range" id="dimRange" min="0" max="95" value="45"></label>
+      <p class="fine">The video plays muted behind the notes and stays in sync with the song. Use a dim level that keeps the notes readable.</p>
+    </section>
+
+    <section class="card" id="playCard">
+      <h2><span class="n">3</span> Play</h2>
+      <div class="seg" id="diffSeg" role="group" aria-label="Difficulty">
+        <button data-diff="easy">Easy</button><button data-diff="medium">Medium</button><button data-diff="hard">Hard</button><button data-diff="expert">Expert</button>
+      </div>
+      <div id="chartInfo" class="muted small">Load a song to build a chart.</div>
+      <label class="sel">Chart <select id="chartSrc"><option value="auto">Auto-generated</option></select></label>
+      <div id="bestScore" class="muted small"></div>
+      <button class="btn primary big" id="playBtn" disabled>Play</button>
+      <button class="btn" id="recBtn" disabled>Record my own chart (tap along)</button>
+      <p class="fine">Keys: <b id="keyHint">A S D F G</b> or tap the lanes. Space = star power. Esc = pause.</p>
+    </section>
+  </div>
+  <footer class="foot">Fretline is an independent rhythm game, not affiliated with or endorsed by any other game or brand. It ships with no music or video: you load your own, and it stays on your device.</footer>
+</main>
+
+<section id="game" class="screen" hidden>
+  <canvas id="cv"></canvas>
+  <button id="pauseBtn" class="round" aria-label="Pause">II</button>
+  <button id="spBtn" class="round sp" aria-label="Star power">★</button>
+</section>
+
+<div class="overlay" id="pauseMenu" hidden><div class="panel">
+  <h2>Paused</h2>
+  <button class="btn primary" id="resumeBtn">Resume</button>
+  <button class="btn" id="restartBtn">Restart song</button>
+  <button class="btn" id="pSettings">Settings</button>
+  <button class="btn ghost" id="quitBtn">Quit to menu</button>
+</div></div>
+
+<div class="overlay" id="results" hidden><div class="panel wide scroll">
+  <div class="grade" id="resGrade">A</div>
+  <div class="stars" id="resStars"></div>
+  <h2 id="resTitle">Song complete</h2>
+  <div class="res-score" id="resScore">0</div>
+  <div class="res-grid">
+    <div><b id="resPerfect">0</b><span>Perfect</span></div><div><b id="resGood">0</b><span>Good</span></div><div><b id="resMiss">0</b><span>Miss</span></div>
+    <div><b id="resCombo">0</b><span>Best combo</span></div><div><b id="resAcc">0%</b><span>Accuracy</span></div><div><b id="resBest">-</b><span>Best score</span></div>
+  </div>
+  <div class="row"><button class="btn primary" id="againBtn">Play again</button><button class="btn" id="menuBtn">Menu</button></div>
+</div></div>
+
+<div class="overlay" id="settings" hidden><div class="panel wide scroll">
+  <h2>Settings</h2>
+  <div class="form">
+    <label class="sel">Difficulty <select id="sDiff"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="expert">Expert</option></select></label>
+    <label class="range"><span>Note speed <b id="sSpeedV"></b></span><input type="range" id="sSpeed" min="1" max="10" step="1"></label>
+    <label class="range"><span>Audio/visual offset <b id="sOffV"></b></span><input type="range" id="sOff" min="-250" max="250" step="5"></label>
+    <div class="row"><button class="btn" id="calibBtn">Calibrate by tapping</button><span class="fine">Positive = you tend to hit late, so the game forgives it.</span></div>
+    <label class="range"><span>Video sync offset <b id="sVoffV"></b></span><input type="range" id="sVoff" min="-500" max="500" step="10"></label>
+    <label class="range"><span>Background dim <b id="sDimV"></b></span><input type="range" id="sDim" min="0" max="95" step="1"></label>
+    <label class="range"><span>Highway panel opacity <b id="sHwV"></b></span><input type="range" id="sHw" min="0" max="100" step="5"></label>
+    <label class="check"><input type="checkbox" id="sBeat"> Show beat lines</label>
+    <div class="keys-title">Lane keys <span class="fine">(click a lane, then press a key)</span></div>
+    <div class="keys" id="keyBtns"></div>
+    <div class="row"><button class="btn ghost" id="keysReset">Reset keys</button><button class="btn ghost" id="allReset">Reset all settings</button></div>
+  </div>
+  <button class="btn primary" id="settingsClose">Done</button>
+</div></div>
+
+<div class="overlay" id="calib" hidden><div class="panel">
+  <h2>Calibrate</h2>
+  <p id="calibMsg">Tap any key, or tap here, exactly when you hear each click.</p>
+  <button class="btn primary big" id="calibTap">Tap with the click</button>
+  <div class="row"><button class="btn" id="calibStart">Start</button><button class="btn" id="calibApply" disabled>Apply</button><button class="btn ghost" id="calibClose">Close</button></div>
+</div></div>
+
+<div class="overlay" id="saved" hidden><div class="panel wide scroll">
+  <h2>Saved charts</h2>
+  <p class="fine">Charts and tempo analysis are saved on this device so a song loads instantly next time. Pick the same audio file again to reuse them. Audio itself is never saved.</p>
+  <div id="savedList"></div>
+  <button class="btn primary" id="savedClose">Close</button>
+</div></div>
+
+<div class="overlay" id="recSave" hidden><div class="panel">
+  <h2>Recording finished</h2>
+  <p id="recMsg"></p>
+  <label class="check"><input type="checkbox" id="recSnap" checked> Snap notes to the beat grid</label>
+  <div class="row"><button class="btn primary" id="recSaveBtn">Save chart</button><button class="btn" id="recAgain">Record again</button><button class="btn ghost" id="recDiscard">Discard</button></div>
+</div></div>
+
+<div id="toast" role="status" hidden></div>
+<script src="analyze.js"></script>
+<script src="game.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
